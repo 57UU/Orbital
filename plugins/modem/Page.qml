@@ -971,7 +971,6 @@ Rectangle {
                         RowLayout {
                             Layout.fillWidth: true
                             ColumnLayout {
-                                Layout.fillWidth: true
                                 spacing: 3
                                 Text { text: "Cellular connections"; color: "white"; font.bold: true; font.pixelSize: 18 }
                                 Text {
@@ -980,6 +979,7 @@ Rectangle {
                                     font.pixelSize: 11
                                 }
                             }
+                            Item { Layout.fillWidth: true }
                             ActionChip {
                                 text: "+ Add"
                                 active: true
