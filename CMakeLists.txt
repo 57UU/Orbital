@@ -17,7 +17,7 @@ pkg_check_modules(LIBDRM REQUIRED libdrm)
 
 # 是否将仓库自带的插件编入二进制。默认不编译；显式打开：
 #   cmake -DORBITAL_BUILD_PLUGINS=ON ...
-option(ORBITAL_BUILD_PLUGINS "Include bundled plugins (sound, bluetooth, ...) in the build" OFF)
+option(ORBITAL_BUILD_PLUGINS "Include bundled plugins (sound, bluetooth, modem, ...) in the build" OFF)
 
 # 示例插件单独开关，仅供插件开发参考；默认不编译：
 #   cmake -DORBITAL_BUILD_EXAMPLE_PLUGINS=ON ...
@@ -36,6 +36,10 @@ if(ORBITAL_BUILD_PLUGINS)
         plugins/bluetooth/icon.svg
         plugins/bluetooth/Page.qml
         plugins/bluetooth/DeviceDetailPage.qml
+        plugins/modem/manifest.json
+        plugins/modem/icon.svg
+        plugins/modem/tower.svg
+        plugins/modem/Page.qml
     )
     message(STATUS "Bundled plugins: ENABLED")
 else()

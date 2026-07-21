@@ -1,0 +1,1 @@
+{  "id": "modem",  "name": "Modem",  "version": "1.0.0",  "description": "View and manage 3GPP modems, SIM status and cellular connections.",  "icon": "icon.svg",  "page": "Page.qml"}

@@ -49,6 +49,13 @@
 - 文本选择与复制
 - 内置软键盘，终端模式下附加 Esc、Tab、方向键、Ctrl、Alt 功能键
 
+### Modem 管理
+- 查看 3GPP modem 的厂商、型号、IMEI、固件、注册状态、运营商、接入技术和信号质量
+- 启用或禁用 modem，查看 SIM 卡标识及 PIN 锁定状态（不在 Orbital 中保存或处理 PIN）
+- 查看、创建、编辑、连接、断开和删除 NetworkManager GSM 配置
+- APN 配置支持连接名、APN 和自动连接开关，优先从现有连接、ModemManager bearer 和运营商数据库自动发现；输入时使用内置虚拟键盘
+- 页面每 5 秒自动刷新 modem、SIM 和连接状态
+
 ---
 
 ## 编译
@@ -81,6 +88,7 @@ cmake --build build -j$(nproc)
 | 功能 | 依赖 |
 |------|------|
 | WiFi 管理 | NetworkManager（`nmcli`） |
+| 蜂窝 modem 管理 | ModemManager（`mmcli`）、NetworkManager（`nmcli`）；自动推荐 APN 可选用 `mobile-broadband-provider-info` |
 | 显示输出 | Qt eglfs / kms 后端 |
 | 触摸输入 | Linux evdev 驱动，Qt evdev 插件 |
 | 亮度调节 | `/sys/class/backlight/` 节点可写 |
@@ -90,6 +98,13 @@ cmake --build build -j$(nproc)
 ```bash
 sudo apt install libqt6quick6 libqt6qml6 qml6-module-qtquick \
     qml6-module-qtquick-controls qml6-module-qtquick-layouts network-manager
+```
+
+使用 Modem 插件还需要安装并运行 ModemManager：
+
+```bash
+sudo apt install modemmanager mobile-broadband-provider-info
+sudo systemctl enable --now ModemManager
 ```
 
 ---
