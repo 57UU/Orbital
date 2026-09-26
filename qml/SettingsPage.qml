@@ -36,6 +36,180 @@ Rectangle {
         return "DRM DPMS"
     }
 
+    // seconds -> Never / 30s / 2 min / 1.5 min (steps are 30s)
+    function screenOffTimeoutLabel(sec) {
+        if (!sec || sec <= 0)
+            return "Never"
+        if (sec < 60)
+            return sec + "s"
+        var mins = sec / 60
+        if (Math.floor(mins) === mins)
+            return mins + " min"
+        return mins.toFixed(1) + " min"
+    }
+
+    Popup {
+        id: screenOffTimeoutPopup
+        parent: Overlay.overlay
+        x: Math.round((parent.width - width) / 2)
+        y: Math.round((parent.height - height) / 2)
+        width: parent.width * 0.85
+        modal: true
+        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+
+        Overlay.modal: Rectangle { color: "#aa000000" }
+
+        // Pending value in 30s steps: 0 = never (power key only), 1..60 = 0.5..30 min.
+        // Applied to sysMon only on OK; Cancel discards.
+        property int pendingSteps: 0
+
+        onOpened: {
+            var cur = root.sysMon ? root.sysMon.screenOffTimeoutSec : 120
+            if (cur > 0) {
+                pendingSteps = Math.round(cur / 30)
+                if (pendingSteps < 1)
+                    pendingSteps = 1
+                if (pendingSteps > 60)
+                    pendingSteps = 60
+            } else {
+                pendingSteps = 0
+            }
+        }
+
+        background: Rectangle {
+            color: "#1e1e1e"
+            radius: 15
+            border.color: "#333333"
+            border.width: 1
+        }
+
+        contentItem: ColumnLayout {
+            spacing: 14
+
+            Text {
+                text: "Screen Off Time"
+                color: "white"
+                font.pixelSize: 18
+                font.bold: true
+                Layout.alignment: Qt.AlignHCenter
+                Layout.topMargin: 6
+            }
+
+            Text {
+                text: screenOffTimeoutPopup.pendingSteps <= 0 ? "Never (power key only)" : root.screenOffTimeoutLabel(screenOffTimeoutPopup.pendingSteps * 30)
+                color: "#0079DB"
+                font.pixelSize: 22
+                font.bold: true
+                Layout.alignment: Qt.AlignHCenter
+            }
+
+            Slider {
+                id: timeoutSlider
+                Layout.fillWidth: true
+                Layout.leftMargin: 16
+                Layout.rightMargin: 16
+                from: 1
+                to: 60
+                stepSize: 1
+                enabled: screenOffTimeoutPopup.pendingSteps > 0
+                opacity: screenOffTimeoutPopup.pendingSteps > 0 ? 1.0 : 0.35
+                value: screenOffTimeoutPopup.pendingSteps > 0 ? screenOffTimeoutPopup.pendingSteps : 4
+                onMoved: screenOffTimeoutPopup.pendingSteps = Math.round(value)
+
+                background: Rectangle {
+                    x: timeoutSlider.leftPadding
+                    y: timeoutSlider.topPadding + timeoutSlider.availableHeight / 2 - height / 2
+                    implicitWidth: 200; implicitHeight: 4
+                    width: timeoutSlider.availableWidth; height: implicitHeight
+                    radius: 2; color: "#333"
+                    Rectangle {
+                        width: timeoutSlider.visualPosition * parent.width
+                        height: parent.height
+                        color: "#0079DB"
+                        radius: 2
+                    }
+                }
+                handle: Rectangle {
+                    x: timeoutSlider.leftPadding + timeoutSlider.visualPosition * (timeoutSlider.availableWidth - width)
+                    y: timeoutSlider.topPadding + timeoutSlider.availableHeight / 2 - height / 2
+                    implicitWidth: 24; implicitHeight: 24
+                    radius: 12
+                    color: timeoutSlider.pressed ? "#f0f0f0" : "#ffffff"
+                    border.color: "#0079DB"
+                }
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                Layout.leftMargin: 16
+                Layout.rightMargin: 16
+                Text { text: "30s"; color: "#888"; font.pixelSize: 11 }
+                Item { Layout.fillWidth: true }
+                Text { text: "30 min"; color: "#888"; font.pixelSize: 11 }
+            }
+
+            Button {
+                Layout.fillWidth: true
+                Layout.leftMargin: 16
+                Layout.rightMargin: 16
+                Layout.preferredHeight: 48
+                text: screenOffTimeoutPopup.pendingSteps > 0 ? "不使用自动息屏" : "使用自动息屏（默认 2 分钟）"
+                background: Rectangle {
+                    color: parent.down ? "#2a2a2a" : "#252525"
+                    radius: 8
+                    border.color: "#555"
+                    border.width: 1
+                }
+                contentItem: Text {
+                    text: parent.text
+                    color: "white"
+                    font.pixelSize: 15
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                }
+                onClicked: {
+                    if (screenOffTimeoutPopup.pendingSteps > 0)
+                        screenOffTimeoutPopup.pendingSteps = 0
+                    else
+                        screenOffTimeoutPopup.pendingSteps = 4
+                }
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                Layout.leftMargin: 16
+                Layout.rightMargin: 16
+                spacing: 12
+
+                Button {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 48
+                    text: "取消"
+                    background: Rectangle { color: "#252525"; radius: 8 }
+                    contentItem: Text { text: parent.text; color: "#aaa"; font.pixelSize: 15; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                    onClicked: screenOffTimeoutPopup.close()
+                }
+
+                Button {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 48
+                    text: "确定"
+                    background: Rectangle { color: "#0079DB"; radius: 8 }
+                    contentItem: Text { text: parent.text; color: "white"; font.bold: true; font.pixelSize: 15; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                    onClicked: {
+                        if (root.sysMon) {
+                            var secs = screenOffTimeoutPopup.pendingSteps <= 0 ? 0 : screenOffTimeoutPopup.pendingSteps * 30
+                            root.sysMon.screenOffTimeoutSec = secs
+                        }
+                        screenOffTimeoutPopup.close()
+                    }
+                }
+            }
+
+            Item { Layout.preferredHeight: 6 }
+        }
+    }
+
     Popup {
         id: screenOffMethodPopup
         parent: Overlay.overlay
@@ -309,6 +483,46 @@ Rectangle {
                     TapHandler {
                         id: tapScreenOff
                         onTapped: screenOffMethodPopup.open()
+                    }
+                }
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.leftMargin: 20
+                    Layout.rightMargin: 20
+                    height: 60
+                    color: tapScreenTimeout.pressed ? "#2a2a2a" : "#1e1e1e"
+                    radius: 12
+
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.margins: 15
+
+                        IconImage {
+                            source: "qrc:/MyDesktop/Backend/assets/screen-off.svg"
+                            sourceSize: Qt.size(24, 24)
+                            color: "white"
+                        }
+
+                        Text {
+                            text: "Screen Off Time"
+                            color: "white"
+                            font.pixelSize: 16
+                            font.bold: true
+                            Layout.fillWidth: true
+                            Layout.leftMargin: 10
+                        }
+
+                        Text {
+                            text: root.sysMon ? root.screenOffTimeoutLabel(root.sysMon.screenOffTimeoutSec) : ""
+                            color: "#888"
+                            font.pixelSize: 12
+                        }
+                    }
+
+                    TapHandler {
+                        id: tapScreenTimeout
+                        onTapped: screenOffTimeoutPopup.open()
                     }
                 }
 

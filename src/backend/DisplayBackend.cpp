@@ -6,6 +6,7 @@
 #include <QCoreApplication>
 #include <QDir>
 #include <QDebug>
+#include <QEvent>
 #include <QGuiApplication>
 #include <QSettings>
 #include <QSocketNotifier>
@@ -26,6 +27,9 @@ constexpr auto kDefaultTouchInhibitPath =
     "/sys/devices/platform/soc@0/ac0000.geniqup/a90000.i2c/i2c-12/12-0020/rmi4-00/input/input5/inhibited";
 
 constexpr auto kScreenOffMethodKey = "display/screenOffMethod";
+constexpr auto kScreenOffTimeoutKey = "display/screenOffTimeoutSec";
+constexpr int kDefaultScreenOffTimeoutSec = 120;
+constexpr int kMaxScreenOffTimeoutSec = 1800;
 constexpr auto kScreenOffMethodDpms = "dpms";
 constexpr auto kScreenOffMethodBacklight = "backlight";
 
@@ -84,10 +88,28 @@ DisplayBackend::DisplayBackend(QObject *parent)
         ? QLatin1String(kScreenOffMethodBacklight)
         : QLatin1String(kScreenOffMethodDpms);
 
+    bool timeoutOk = false;
+    const int storedTimeout = settings.value(QLatin1String(kScreenOffTimeoutKey),
+                                             kDefaultScreenOffTimeoutSec).toInt(&timeoutOk);
+    if (timeoutOk && storedTimeout >= 0 && storedTimeout <= kMaxScreenOffTimeoutSec) {
+        m_screenOffTimeoutSec = storedTimeout;
+    } else {
+        m_screenOffTimeoutSec = kDefaultScreenOffTimeoutSec;
+    }
+
+    m_idleTimer = new QTimer(this);
+    m_idleTimer->setSingleShot(true);
+    connect(m_idleTimer, &QTimer::timeout, this, &DisplayBackend::onIdleTimeout);
+
     findBacklightPath();
     initDrmPanel();
     initPowerKeyMonitor();
     initVolumeKeyMonitor();
+
+    if (QCoreApplication::instance()) {
+        QCoreApplication::instance()->installEventFilter(this);
+    }
+    scheduleIdleTimer();
 }
 
 DisplayBackend::~DisplayBackend()
@@ -146,6 +168,91 @@ void DisplayBackend::setScreenOffMethod(const QString &method)
     emit screenOffMethodChanged();
 }
 
+int DisplayBackend::screenOffTimeoutSec() const
+{
+    return m_screenOffTimeoutSec;
+}
+
+void DisplayBackend::setScreenOffTimeoutSec(int seconds)
+{
+    int normalized = seconds;
+    if (normalized < 0) {
+        normalized = 0;
+    }
+    if (normalized > kMaxScreenOffTimeoutSec) {
+        normalized = kMaxScreenOffTimeoutSec;
+    }
+
+    if (normalized == m_screenOffTimeoutSec) {
+        return;
+    }
+
+    m_screenOffTimeoutSec = normalized;
+
+    QSettings settings;
+    settings.setValue(QLatin1String(kScreenOffTimeoutKey), m_screenOffTimeoutSec);
+
+    scheduleIdleTimer();
+    emit screenOffTimeoutChanged();
+}
+
+void DisplayBackend::poke()
+{
+    if (m_screenOffTimeoutSec <= 0 || !m_isScreenOn) {
+        return;
+    }
+    scheduleIdleTimer();
+}
+
+void DisplayBackend::onIdleTimeout()
+{
+    if (m_screenOffTimeoutSec <= 0 || !m_isScreenOn) {
+        return;
+    }
+    qDebug() << "Idle timeout (" << m_screenOffTimeoutSec << "s): turning screen off.";
+    toggleScreen();
+}
+
+void DisplayBackend::wakeScreen()
+{
+    if (!m_isScreenOn) {
+        toggleScreen();
+    } else {
+        scheduleIdleTimer();
+    }
+}
+
+void DisplayBackend::scheduleIdleTimer()
+{
+    if (!m_idleTimer) {
+        return;
+    }
+    if (m_screenOffTimeoutSec <= 0 || !m_isScreenOn) {
+        m_idleTimer->stop();
+        return;
+    }
+    m_idleTimer->start(m_screenOffTimeoutSec * 1000);
+}
+
+bool DisplayBackend::eventFilter(QObject *watched, QEvent *event)
+{
+    // Any real user input seen by Qt restarts the idle countdown.
+    // Passive: never consumes events.
+    if (m_isScreenOn && m_screenOffTimeoutSec > 0 && event) {
+        switch (event->type()) {
+        case QEvent::TouchBegin:
+        case QEvent::MouseButtonPress:
+        case QEvent::Wheel:
+        case QEvent::KeyPress:
+            scheduleIdleTimer();
+            break;
+        default:
+            break;
+        }
+    }
+    return QObject::eventFilter(watched, event);
+}
+
 void DisplayBackend::setBrightness(int percent)
 {
     if (percent < 0) {
@@ -190,6 +297,7 @@ void DisplayBackend::onPowerInputEvent(int fd)
 
         if (ev.value == 1) {
             qDebug() << "Key Down: Timer Started";
+            poke();
             m_longPressTimer->start();
         } else if (ev.value == 0) {
             if (m_longPressTimer->isActive()) {
@@ -245,6 +353,18 @@ void DisplayBackend::onVolumeInputEvent(int fd)
         if (ev.code != KEY_VOLUMEUP && ev.code != KEY_VOLUMEDOWN) {
             continue;
         }
+
+        // Screen off: volume keys only wake the screen (no volume change,
+        // no screenshot combo) - same division as the old idle-watch stack.
+        if (!m_isScreenOn) {
+            if (ev.value == 1) {
+                qDebug() << "Volume key press while screen off: waking.";
+                wakeScreen();
+            }
+            continue;
+        }
+
+        poke();
 
         const QString key = volumeKeyName(ev.code);
         qDebug() << "Volume key event:" << key << "value:" << ev.value;
@@ -348,6 +468,12 @@ void DisplayBackend::toggleScreen()
         if (useDpms) {
             setDpms(DRM_MODE_DPMS_OFF);
         }
+    }
+
+    if (m_isScreenOn) {
+        scheduleIdleTimer();
+    } else if (m_idleTimer) {
+        m_idleTimer->stop();
     }
 
     emit screenStateChanged();

@@ -42,6 +42,8 @@ SystemMonitor::SystemMonitor(QObject *parent)
             this, &SystemMonitor::screenStateChanged);
     connect(m_displayBackend, &DisplayBackend::screenOffMethodChanged,
             this, &SystemMonitor::screenOffMethodChanged);
+    connect(m_displayBackend, &DisplayBackend::screenOffTimeoutChanged,
+            this, &SystemMonitor::screenOffTimeoutChanged);
     connect(m_displayBackend, &DisplayBackend::volumeKeyEvent,
             this, &SystemMonitor::volumeKeyEvent);
     connect(m_displayBackend, &DisplayBackend::screenshotRequested,
@@ -164,6 +166,21 @@ bool SystemMonitor::isScreenOn() const
 QString SystemMonitor::screenOffMethod() const
 {
     return m_displayBackend->screenOffMethod();
+}
+
+int SystemMonitor::screenOffTimeoutSec() const
+{
+    return m_displayBackend->screenOffTimeoutSec();
+}
+
+void SystemMonitor::setScreenOffTimeoutSec(int seconds)
+{
+    m_displayBackend->setScreenOffTimeoutSec(seconds);
+}
+
+void SystemMonitor::pokeIdleTimer()
+{
+    m_displayBackend->poke();
 }
 
 void SystemMonitor::setScreenOffMethod(const QString &method)
