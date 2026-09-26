@@ -33,6 +33,17 @@ constexpr int kMaxScreenOffTimeoutSec = 1800;
 constexpr auto kScreenOffMethodDpms = "dpms";
 constexpr auto kScreenOffMethodBacklight = "backlight";
 
+// Fixed settings file: systemd services do not get $HOME, and QSettings
+// user scope silently falls back to defaults when it cannot resolve one
+// (seen on device). An explicit path has no such dependency.
+constexpr auto kSettingsFile = "/etc/orbital/Orbital.conf";
+
+QSettings siriusSettings()
+{
+    QDir().mkpath(QString::fromLatin1("/etc/orbital"));
+    return QSettings(QString::fromLatin1(kSettingsFile), QSettings::IniFormat);
+}
+
 QString environmentOrFallback(const char *name, const QString &fallback)
 {
     const QByteArray value = qgetenv(name).trimmed();
@@ -81,7 +92,7 @@ DisplayBackend::DisplayBackend(QObject *parent)
     const QString rawVolume = environmentOrFallback("ORBITAL_VOLUME_KEY_PATH", rawPower);
     m_volumeKeyPaths = parsePathList(rawVolume);
 
-    QSettings settings;
+    QSettings settings = siriusSettings();
     const QString stored = settings.value(QLatin1String(kScreenOffMethodKey),
                                           QLatin1String(kScreenOffMethodDpms)).toString();
     m_screenOffMethod = (stored == QLatin1String(kScreenOffMethodBacklight))
@@ -162,7 +173,7 @@ void DisplayBackend::setScreenOffMethod(const QString &method)
 
     m_screenOffMethod = normalized;
 
-    QSettings settings;
+    QSettings settings = siriusSettings();
     settings.setValue(QLatin1String(kScreenOffMethodKey), m_screenOffMethod);
 
     emit screenOffMethodChanged();
@@ -189,7 +200,7 @@ void DisplayBackend::setScreenOffTimeoutSec(int seconds)
 
     m_screenOffTimeoutSec = normalized;
 
-    QSettings settings;
+    QSettings settings = siriusSettings();
     settings.setValue(QLatin1String(kScreenOffTimeoutKey), m_screenOffTimeoutSec);
 
     scheduleIdleTimer();
