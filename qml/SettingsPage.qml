@@ -153,7 +153,7 @@ Rectangle {
                 Layout.leftMargin: 16
                 Layout.rightMargin: 16
                 Layout.preferredHeight: 48
-                text: screenOffTimeoutPopup.pendingSteps > 0 ? "不使用自动息屏" : "使用自动息屏（默认 2 分钟）"
+                text: screenOffTimeoutPopup.pendingSteps > 0 ? "Disable auto screen-off" : "Enable auto screen-off"
                 background: Rectangle {
                     color: parent.down ? "#2a2a2a" : "#252525"
                     radius: 8
@@ -184,7 +184,7 @@ Rectangle {
                 Button {
                     Layout.fillWidth: true
                     Layout.preferredHeight: 48
-                    text: "取消"
+                    text: "Cancel"
                     background: Rectangle { color: "#252525"; radius: 8 }
                     contentItem: Text { text: parent.text; color: "#aaa"; font.pixelSize: 15; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
                     onClicked: screenOffTimeoutPopup.close()
@@ -193,7 +193,7 @@ Rectangle {
                 Button {
                     Layout.fillWidth: true
                     Layout.preferredHeight: 48
-                    text: "确定"
+                    text: "OK"
                     background: Rectangle { color: "#0079DB"; radius: 8 }
                     contentItem: Text { text: parent.text; color: "white"; font.bold: true; font.pixelSize: 15; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
                     onClicked: {
