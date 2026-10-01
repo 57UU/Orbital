@@ -148,30 +148,30 @@ Rectangle {
                 Text { text: "30 min"; color: "#888"; font.pixelSize: 11 }
             }
 
-            Button {
+            Rectangle {
                 Layout.fillWidth: true
                 Layout.leftMargin: 16
                 Layout.rightMargin: 16
                 Layout.preferredHeight: 48
-                text: screenOffTimeoutPopup.pendingSteps > 0 ? "Disable auto screen-off" : "Enable auto screen-off"
-                background: Rectangle {
-                    color: parent.down ? "#2a2a2a" : "#252525"
-                    radius: 8
-                    border.color: "#555"
-                    border.width: 1
-                }
-                contentItem: Text {
-                    text: parent.text
+                radius: 8
+                color: tapAutoToggle.pressed ? "#3a3a3a" : "#252525"
+                border.color: "#555"
+                border.width: 1
+                Text {
+                    anchors.centerIn: parent
+                    text: screenOffTimeoutPopup.pendingSteps > 0 ? "Disable auto screen-off" : "Enable auto screen-off"
                     color: "white"
                     font.pixelSize: 15
-                    horizontalAlignment: Text.AlignHCenter
-                    verticalAlignment: Text.AlignVCenter
                 }
-                onClicked: {
+                TapHandler {
+                    id: tapAutoToggle
+                    gesturePolicy: TapHandler.ReleaseWithinBounds
+                    onTapped: {
                     if (screenOffTimeoutPopup.pendingSteps > 0)
                         screenOffTimeoutPopup.pendingSteps = 0
                     else
                         screenOffTimeoutPopup.pendingSteps = 4
+                    }
                 }
             }
 
@@ -181,27 +181,46 @@ Rectangle {
                 Layout.rightMargin: 16
                 spacing: 12
 
-                Button {
+                Rectangle {
                     Layout.fillWidth: true
                     Layout.preferredHeight: 48
-                    text: "Cancel"
-                    background: Rectangle { color: "#252525"; radius: 8 }
-                    contentItem: Text { text: parent.text; color: "#aaa"; font.pixelSize: 15; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
-                    onClicked: screenOffTimeoutPopup.close()
+                    radius: 8
+                    color: tapCancel.pressed ? "#3a3a3a" : "#252525"
+                    Text {
+                        anchors.centerIn: parent
+                        text: "Cancel"
+                        color: "#aaa"
+                        font.pixelSize: 15
+                    }
+                    TapHandler {
+                        id: tapCancel
+                        gesturePolicy: TapHandler.ReleaseWithinBounds
+                        onTapped: screenOffTimeoutPopup.close()
+                    }
                 }
 
-                Button {
+                Rectangle {
                     Layout.fillWidth: true
                     Layout.preferredHeight: 48
-                    text: "OK"
-                    background: Rectangle { color: "#0079DB"; radius: 8 }
-                    contentItem: Text { text: parent.text; color: "white"; font.bold: true; font.pixelSize: 15; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
-                    onClicked: {
+                    radius: 8
+                    color: tapOK.pressed ? "#005FA3" : "#0079DB"
+                    Text {
+                        anchors.centerIn: parent
+                        text: "OK"
+                        color: "white"
+                        font.bold: true
+                        font.pixelSize: 15
+                    }
+                    TapHandler {
+                        id: tapOK
+                        gesturePolicy: TapHandler.ReleaseWithinBounds
+                        onTapped: {
                         if (root.sysMon) {
                             var secs = screenOffTimeoutPopup.pendingSteps <= 0 ? 0 : screenOffTimeoutPopup.pendingSteps * 30
                             root.sysMon.screenOffTimeoutSec = secs
                         }
                         screenOffTimeoutPopup.close()
+                        }
                     }
                 }
             }
@@ -329,25 +348,22 @@ Rectangle {
                 spacing: 0
                 anchors.leftMargin: 10
                 anchors.rightMargin: 15
-                ToolButton {
-                    // 强制设置按钮大小为 48x48 (标准触控尺寸)
-                    Layout.preferredWidth: 52 
-                    Layout.fillHeight: true 
-                    
-                    // 使用 SVG 图标替换文本箭头
-                    contentItem: IconImage {
+                Rectangle {
+                    Layout.preferredWidth: 64
+                    Layout.fillHeight: true
+                    radius: 8
+                    color: backTap.pressed ? "#333" : "transparent"
+                    IconImage {
                         anchors.centerIn: parent
                         source: "qrc:/MyDesktop/Backend/assets/back.svg"
                         sourceSize: Qt.size(48, 48)
                         color: "white"
                     }
-                    
-                    background: Rectangle { 
-                        color: parent.pressed ? "#333" : "transparent" 
+                    TapHandler {
+                        id: backTap
+                        gesturePolicy: TapHandler.ReleaseWithinBounds
+                        onTapped: root.requestBack()
                     }
-                    
-                    // 发出信号
-                    onClicked: root.requestBack()
                 }
 
                 Text {

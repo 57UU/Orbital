@@ -704,34 +704,26 @@ Window {
                     }
                 }
 
-                delegate: ItemDelegate {
+                delegate: Rectangle {
                     width: parent.width
                     height: 65
-                    
-                    background: Rectangle {
-                        color: parent.down ? "#2a2a2a" : "transparent"
-                        Rectangle {
-                            width: 4; height: parent.height
-                            color: model.itemColor
-                            visible: parent.parent.down
-                        }
+                    color: tapMenu.pressed ? "#2a2a2a" : "transparent"
+                    Rectangle {
+                        width: 4; height: parent.height
+                        color: model.itemColor
+                        visible: tapMenu.pressed
                     }
-
-                    contentItem: RowLayout {
+                    RowLayout {
                         anchors.fill: parent
                         anchors.leftMargin: 30
                         anchors.rightMargin: 30
                         spacing: 20
-
-                        // 图标
                         IconImage {
                             source: "qrc:/MyDesktop/Backend/assets/" + model.icon
                             sourceSize: Qt.size(24, 24)
-                            color: model.itemColor // 图标颜色跟随定义
+                            color: model.itemColor
                             Layout.alignment: Qt.AlignVCenter
                         }
-
-                        // 文字
                         Text {
                             text: model.name
                             color: model.itemColor
@@ -740,10 +732,11 @@ Window {
                             Layout.fillWidth: true
                             Layout.alignment: Qt.AlignVCenter
                         }
-
                     }
-
-                    onClicked: {
+                    TapHandler {
+                        id: tapMenu
+                        gesturePolicy: TapHandler.ReleaseWithinBounds
+                        onTapped: {
                         // 稍微延迟关闭，让用户看到点击动画
                         drawer.close()
                         
@@ -764,6 +757,7 @@ Window {
                         }
                         else if (model.action === "shutdown") {
                             backend.systemCmd("poweroff")
+                        }
                         }
                     }
                 }
