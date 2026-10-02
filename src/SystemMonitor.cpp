@@ -83,6 +83,11 @@ QString SystemMonitor::memDetail() const
     return m_statsBackend->memDetail();
 }
 
+QVariantMap SystemMonitor::memDetails() const
+{
+    return m_statsBackend->memDetails();
+}
+
 double SystemMonitor::diskPercent() const
 {
     return m_statsBackend->diskPercent();

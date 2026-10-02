@@ -23,6 +23,7 @@ class SystemMonitor : public QObject
     Q_PROPERTY(QVariantList cpuCores READ cpuCores NOTIFY statsChanged)
     Q_PROPERTY(double memPercent READ memPercent NOTIFY statsChanged)
     Q_PROPERTY(QString memDetail READ memDetail NOTIFY statsChanged)
+    Q_PROPERTY(QVariantMap memDetails READ memDetails NOTIFY statsChanged)
     Q_PROPERTY(double diskPercent READ diskPercent NOTIFY statsChanged)
     Q_PROPERTY(QString diskRootUsage READ diskRootUsage NOTIFY statsChanged)
     Q_PROPERTY(QVariantList diskPartitions READ diskPartitions NOTIFY statsChanged)
@@ -57,6 +58,7 @@ public:
     QVariantList cpuCores() const;
     double memPercent() const;
     QString memDetail() const;
+    QVariantMap memDetails() const;
     double diskPercent() const;
     QString diskRootUsage() const;
     QVariantList diskPartitions() const;
