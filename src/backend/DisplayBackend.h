@@ -56,6 +56,9 @@ private:
     void toggleScreen();
     void wakeScreen();
     void scheduleIdleTimer();
+    // Show/hide all Qt windows to fully stop/restart the render loop
+    // when the screen is off/on (saves GPU + vsync wakeups).
+    void setWindowsVisible(bool visible);
     void findBacklightPath();
     void readBrightness();
     void initDrmPanel();

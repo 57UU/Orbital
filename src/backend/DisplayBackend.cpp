@@ -426,24 +426,39 @@ void DisplayBackend::initVolumeKeyMonitor()
     }
 }
 
+void DisplayBackend::setWindowsVisible(bool visible)
+{
+    const auto windows = QGuiApplication::allWindows();
+    for (QWindow *win : windows) {
+        if (!win || win->isVisible() == visible)
+            continue;
+        win->setVisible(visible);
+    }
+}
+
 void DisplayBackend::toggleScreen()
 {
     m_isScreenOn = !m_isScreenOn;
 
-    if (m_backlightPath.isEmpty()) {
-        return;
-    }
-
-    const QString blPowerPath = m_backlightPath + "/bl_power";
+    // NOTE: no early return here on purpose - hiding windows and emitting
+    // screenStateChanged (which pauses stats polling) must also happen when
+    // no backlight node exists (e.g. dev machines).
+    const QString blPowerPath = m_backlightPath.isEmpty()
+        ? QString()
+        : m_backlightPath + "/bl_power";
     const bool useDpms = (m_screenOffMethod == QLatin1String(kScreenOffMethodDpms));
+    const bool haveBacklight = !m_backlightPath.isEmpty();
 
     if (m_isScreenOn) {
         qDebug() << "Screen ON (method:" << m_screenOffMethod << ")";
+        // Show windows first so the first frames are ready before the
+        // panel powers up, then force a repaint below.
+        setWindowsVisible(true);
         if (useDpms) {
             setDpms(DRM_MODE_DPMS_ON);
         }
 
-        if (!Backend::writeTextFile(blPowerPath, "0")) {
+        if (haveBacklight && !Backend::writeTextFile(blPowerPath, "0")) {
             qDebug() << "Failed to write to" << blPowerPath;
         }
 
@@ -452,7 +467,7 @@ void DisplayBackend::toggleScreen()
             actualVal = 1;
         }
 
-        if (!Backend::writeTextFile(m_backlightPath + "/brightness", QString::number(actualVal))) {
+        if (haveBacklight && !Backend::writeTextFile(m_backlightPath + "/brightness", QString::number(actualVal))) {
             qDebug() << "Failed to write to" << m_backlightPath + "/brightness";
         }
 
@@ -468,7 +483,13 @@ void DisplayBackend::toggleScreen()
         });
     } else {
         qDebug() << "Screen OFF (method:" << m_screenOffMethod << ")";
-        if (!Backend::writeTextFile(blPowerPath, "1")) {
+        // Stop the Qt render loop first: hidden windows produce no frames,
+        // so the GPU can idle even though the process keeps running.
+        // Wake-up still works because power/volume keys are monitored via
+        // evdev (QSocketNotifier), independent of window visibility.
+        setWindowsVisible(false);
+
+        if (haveBacklight && !Backend::writeTextFile(blPowerPath, "1")) {
             qDebug() << "Failed to write to" << blPowerPath;
         }
 

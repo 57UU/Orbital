@@ -59,6 +59,20 @@ SystemMonitor::SystemMonitor(QObject *parent)
             this, &SystemMonitor::wifiOperationResult);
 
     connect(m_timer, &QTimer::timeout, this, &SystemMonitor::refreshStats);
+    // Pause stats polling while the screen is off: this stops the per-second
+    // file reads plus all QML binding churn / Canvas repaints they trigger.
+    // (DisplayBackend also hides all windows, stopping the render loop.)
+    connect(m_displayBackend, &DisplayBackend::screenStateChanged, this, [this]() {
+        if (!m_displayBackend || !m_timer)
+            return;
+        if (m_displayBackend->isScreenOn()) {
+            if (!m_timer->isActive())
+                m_timer->start(1000);
+            refreshStats();
+        } else {
+            m_timer->stop();
+        }
+    });
     m_timer->start(1000);
     QTimer::singleShot(0, this, &SystemMonitor::refreshStats);
 }
@@ -312,5 +326,9 @@ void SystemMonitor::systemCmd(const QString &cmd)
 
 void SystemMonitor::refreshStats()
 {
+    // Belt and braces: the timer is stopped while screen-off, but guard
+    // against stray triggers (e.g. the startup singleShot racing a toggle).
+    if (m_displayBackend && !m_displayBackend->isScreenOn())
+        return;
     m_statsBackend->update();
 }
