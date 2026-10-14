@@ -38,7 +38,7 @@ constexpr auto kScreenOffMethodBacklight = "backlight";
 // (seen on device). An explicit path has no such dependency.
 constexpr auto kSettingsFile = "/etc/orbital/Orbital.conf";
 
-QSettings siriusSettings()
+QSettings orbitalSettings()
 {
     QDir().mkpath(QString::fromLatin1("/etc/orbital"));
     return QSettings(QString::fromLatin1(kSettingsFile), QSettings::IniFormat);
@@ -92,7 +92,7 @@ DisplayBackend::DisplayBackend(QObject *parent)
     const QString rawVolume = environmentOrFallback("ORBITAL_VOLUME_KEY_PATH", rawPower);
     m_volumeKeyPaths = parsePathList(rawVolume);
 
-    QSettings settings = siriusSettings();
+    QSettings settings = orbitalSettings();
     const QString stored = settings.value(QLatin1String(kScreenOffMethodKey),
                                           QLatin1String(kScreenOffMethodDpms)).toString();
     m_screenOffMethod = (stored == QLatin1String(kScreenOffMethodBacklight))
@@ -173,7 +173,7 @@ void DisplayBackend::setScreenOffMethod(const QString &method)
 
     m_screenOffMethod = normalized;
 
-    QSettings settings = siriusSettings();
+    QSettings settings = orbitalSettings();
     settings.setValue(QLatin1String(kScreenOffMethodKey), m_screenOffMethod);
 
     emit screenOffMethodChanged();
@@ -200,7 +200,7 @@ void DisplayBackend::setScreenOffTimeoutSec(int seconds)
 
     m_screenOffTimeoutSec = normalized;
 
-    QSettings settings = siriusSettings();
+    QSettings settings = orbitalSettings();
     settings.setValue(QLatin1String(kScreenOffTimeoutKey), m_screenOffTimeoutSec);
 
     scheduleIdleTimer();
