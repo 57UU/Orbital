@@ -49,7 +49,7 @@ Rectangle {
     }
 
     Popup {
-        id: screenOffTimeoutPopup
+        id: screenOffPopup
         parent: Overlay.overlay
         x: Math.round((parent.width - width) / 2)
         y: Math.round((parent.height - height) / 2)
@@ -59,11 +59,13 @@ Rectangle {
 
         Overlay.modal: Rectangle { color: "#aa000000" }
 
-        // Pending value in 30s steps: 0 = never (power key only), 1..60 = 0.5..30 min.
-        // Applied to sysMon only on OK; Cancel discards.
+        // Pending values, applied to sysMon only on OK; Cancel discards.
+        // pendingSteps: 0 = never (power key only), 1..60 = 0.5..30 min.
         property int pendingSteps: 0
+        property string pendingMethod: "dpms"
 
         onOpened: {
+            pendingMethod = root.sysMon ? root.sysMon.screenOffMethod : "dpms"
             var cur = root.sysMon ? root.sysMon.screenOffTimeoutSec : 120
             if (cur > 0) {
                 pendingSteps = Math.round(cur / 30)
@@ -87,7 +89,7 @@ Rectangle {
             spacing: 14
 
             Text {
-                text: "Screen Off Time"
+                text: "Screen Off"
                 color: "white"
                 font.pixelSize: 18
                 font.bold: true
@@ -96,7 +98,81 @@ Rectangle {
             }
 
             Text {
-                text: screenOffTimeoutPopup.pendingSteps <= 0 ? "Never (power key only)" : root.screenOffTimeoutLabel(screenOffTimeoutPopup.pendingSteps * 30)
+                text: "Screen Off Method"
+                color: "#888"
+                font.pixelSize: 12
+                Layout.fillWidth: true
+                Layout.leftMargin: 16
+                Layout.rightMargin: 16
+            }
+
+            Repeater {
+                model: [
+                    { id: "dpms",      label: "DRM DPMS",      detail: "Recommended. Uses kernel DPMS via DRM connector plus backlight off." },
+                    { id: "backlight", label: "Backlight only", detail: "Compatibility mode. Skips DRM DPMS; only turns the backlight off." }
+                ]
+
+                delegate: Rectangle {
+                    Layout.fillWidth: true
+                    Layout.leftMargin: 16
+                    Layout.rightMargin: 16
+                    height: Math.max(optCol.implicitHeight + 28, 74)
+                    radius: 10
+                    color: optTap.pressed ? "#2a2a2a" : "#252525"
+                    border.color: screenOffPopup.pendingMethod === modelData.id ? "#0079DB" : "#333"
+                    border.width: 1
+
+                    ColumnLayout {
+                        id: optCol
+                        anchors.fill: parent
+                        anchors.margins: 14
+                        spacing: 4
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Text {
+                                text: modelData.label
+                                color: "white"
+                                font.pixelSize: 15
+                                font.bold: true
+                                Layout.fillWidth: true
+                            }
+                            Text {
+                                visible: screenOffPopup.pendingMethod === modelData.id
+                                text: "✓"
+                                color: "#0079DB"
+                                font.pixelSize: 16
+                                font.bold: true
+                            }
+                        }
+
+                        Text {
+                            text: modelData.detail
+                            color: "#888"
+                            font.pixelSize: 11
+                            wrapMode: Text.WordWrap
+                            Layout.fillWidth: true
+                        }
+                    }
+
+                    TapHandler {
+                        id: optTap
+                        onTapped: screenOffPopup.pendingMethod = modelData.id
+                    }
+                }
+            }
+
+            Text {
+                text: "Auto Screen Off"
+                color: "#888"
+                font.pixelSize: 12
+                Layout.fillWidth: true
+                Layout.leftMargin: 16
+                Layout.rightMargin: 16
+            }
+
+            Text {
+                text: screenOffPopup.pendingSteps <= 0 ? "Never (power key only)" : root.screenOffTimeoutLabel(screenOffPopup.pendingSteps * 30)
                 color: "#0079DB"
                 font.pixelSize: 22
                 font.bold: true
@@ -111,10 +187,10 @@ Rectangle {
                 from: 1
                 to: 60
                 stepSize: 1
-                enabled: screenOffTimeoutPopup.pendingSteps > 0
-                opacity: screenOffTimeoutPopup.pendingSteps > 0 ? 1.0 : 0.35
-                value: screenOffTimeoutPopup.pendingSteps > 0 ? screenOffTimeoutPopup.pendingSteps : 4
-                onMoved: screenOffTimeoutPopup.pendingSteps = Math.round(value)
+                enabled: screenOffPopup.pendingSteps > 0
+                opacity: screenOffPopup.pendingSteps > 0 ? 1.0 : 0.35
+                value: screenOffPopup.pendingSteps > 0 ? screenOffPopup.pendingSteps : 4
+                onMoved: screenOffPopup.pendingSteps = Math.round(value)
 
                 background: Rectangle {
                     x: timeoutSlider.leftPadding
@@ -159,7 +235,7 @@ Rectangle {
                 border.width: 1
                 Text {
                     anchors.centerIn: parent
-                    text: screenOffTimeoutPopup.pendingSteps > 0 ? "Disable auto screen-off" : "Enable auto screen-off"
+                    text: screenOffPopup.pendingSteps > 0 ? "Disable auto screen-off" : "Enable auto screen-off"
                     color: "white"
                     font.pixelSize: 15
                 }
@@ -167,10 +243,10 @@ Rectangle {
                     id: tapAutoToggle
                     gesturePolicy: TapHandler.ReleaseWithinBounds
                     onTapped: {
-                    if (screenOffTimeoutPopup.pendingSteps > 0)
-                        screenOffTimeoutPopup.pendingSteps = 0
+                    if (screenOffPopup.pendingSteps > 0)
+                        screenOffPopup.pendingSteps = 0
                     else
-                        screenOffTimeoutPopup.pendingSteps = 4
+                        screenOffPopup.pendingSteps = 4
                     }
                 }
             }
@@ -195,7 +271,7 @@ Rectangle {
                     TapHandler {
                         id: tapCancel
                         gesturePolicy: TapHandler.ReleaseWithinBounds
-                        onTapped: screenOffTimeoutPopup.close()
+                        onTapped: screenOffPopup.close()
                     }
                 }
 
@@ -216,114 +292,11 @@ Rectangle {
                         gesturePolicy: TapHandler.ReleaseWithinBounds
                         onTapped: {
                         if (root.sysMon) {
-                            var secs = screenOffTimeoutPopup.pendingSteps <= 0 ? 0 : screenOffTimeoutPopup.pendingSteps * 30
+                            root.sysMon.screenOffMethod = screenOffPopup.pendingMethod
+                            var secs = screenOffPopup.pendingSteps <= 0 ? 0 : screenOffPopup.pendingSteps * 30
                             root.sysMon.screenOffTimeoutSec = secs
                         }
-                        screenOffTimeoutPopup.close()
-                        }
-                    }
-                }
-            }
-
-            Item { Layout.preferredHeight: 6 }
-        }
-    }
-
-    Popup {
-        id: screenOffMethodPopup
-        parent: Overlay.overlay
-        x: Math.round((parent.width - width) / 2)
-        y: Math.round((parent.height - height) / 2)
-        width: parent.width * 0.85
-        modal: true
-        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
-
-        Overlay.modal: Rectangle { color: "#aa000000" }
-
-        background: Rectangle {
-            color: "#1e1e1e"
-            radius: 15
-            border.color: "#333333"
-            border.width: 1
-        }
-
-        contentItem: ColumnLayout {
-            spacing: 14
-
-            Text {
-                text: "Screen Off Method"
-                color: "white"
-                font.pixelSize: 18
-                font.bold: true
-                Layout.alignment: Qt.AlignHCenter
-                Layout.topMargin: 6
-            }
-
-            Text {
-                text: "Some devices freeze when toggling DRM DPMS. Switch to Backlight only if you experience lockups on screen off."
-                color: "#aaa"
-                font.pixelSize: 12
-                wrapMode: Text.WordWrap
-                Layout.fillWidth: true
-                Layout.leftMargin: 16
-                Layout.rightMargin: 16
-            }
-
-            Repeater {
-                model: [
-                    { id: "dpms",      label: "DRM DPMS",      detail: "Recommended. Uses kernel DPMS via DRM connector plus backlight off." },
-                    { id: "backlight", label: "Backlight only", detail: "Compatibility mode. Skips DRM DPMS; only turns the backlight off." }
-                ]
-
-                delegate: Rectangle {
-                    Layout.fillWidth: true
-                    Layout.leftMargin: 16
-                    Layout.rightMargin: 16
-                    height: Math.max(optCol.implicitHeight + 28, 88)
-                    radius: 10
-                    color: optTap.pressed ? "#2a2a2a" : "#252525"
-                    border.color: root.sysMon && root.sysMon.screenOffMethod === modelData.id ? "#0079DB" : "#333"
-                    border.width: 1
-
-                    ColumnLayout {
-                        id: optCol
-                        anchors.fill: parent
-                        anchors.margins: 14
-                        spacing: 6
-
-                        RowLayout {
-                            Layout.fillWidth: true
-                            Text {
-                                text: modelData.label
-                                color: "white"
-                                font.pixelSize: 15
-                                font.bold: true
-                                Layout.fillWidth: true
-                            }
-                            Text {
-                                visible: root.sysMon && root.sysMon.screenOffMethod === modelData.id
-                                text: "✓"
-                                color: "#0079DB"
-                                font.pixelSize: 16
-                                font.bold: true
-                            }
-                        }
-
-                        Text {
-                            text: modelData.detail
-                            color: "#888"
-                            font.pixelSize: 11
-                            wrapMode: Text.WordWrap
-                            Layout.fillWidth: true
-                        }
-                    }
-
-                    TapHandler {
-                        id: optTap
-                        onTapped: {
-                            if (root.sysMon)
-                                root.sysMon.screenOffMethod = modelData.id
-                            screenOffMethodPopup.close()
+                        screenOffPopup.close()
                         }
                     }
                 }
@@ -481,7 +454,7 @@ Rectangle {
                         }
 
                         Text {
-                            text: "Screen Off Method"
+                            text: "Screen Off"
                             color: "white"
                             font.pixelSize: 16
                             font.bold: true
@@ -490,7 +463,7 @@ Rectangle {
                         }
 
                         Text {
-                            text: root.sysMon ? root.screenOffMethodLabel(root.sysMon.screenOffMethod) : ""
+                            text: root.sysMon ? (root.screenOffMethodLabel(root.sysMon.screenOffMethod) + " · " + root.screenOffTimeoutLabel(root.sysMon.screenOffTimeoutSec)) : ""
                             color: "#888"
                             font.pixelSize: 12
                         }
@@ -498,47 +471,7 @@ Rectangle {
 
                     TapHandler {
                         id: tapScreenOff
-                        onTapped: screenOffMethodPopup.open()
-                    }
-                }
-
-                Rectangle {
-                    Layout.fillWidth: true
-                    Layout.leftMargin: 20
-                    Layout.rightMargin: 20
-                    height: 60
-                    color: tapScreenTimeout.pressed ? "#2a2a2a" : "#1e1e1e"
-                    radius: 12
-
-                    RowLayout {
-                        anchors.fill: parent
-                        anchors.margins: 15
-
-                        IconImage {
-                            source: "qrc:/MyDesktop/Backend/assets/screen-off.svg"
-                            sourceSize: Qt.size(24, 24)
-                            color: "white"
-                        }
-
-                        Text {
-                            text: "Screen Off Time"
-                            color: "white"
-                            font.pixelSize: 16
-                            font.bold: true
-                            Layout.fillWidth: true
-                            Layout.leftMargin: 10
-                        }
-
-                        Text {
-                            text: root.sysMon ? root.screenOffTimeoutLabel(root.sysMon.screenOffTimeoutSec) : ""
-                            color: "#888"
-                            font.pixelSize: 12
-                        }
-                    }
-
-                    TapHandler {
-                        id: tapScreenTimeout
-                        onTapped: screenOffTimeoutPopup.open()
+                        onTapped: screenOffPopup.open()
                     }
                 }
 
